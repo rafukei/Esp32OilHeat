@@ -1228,16 +1228,49 @@ const char* htmlPage = R"rawliteral(
         });
     }
     
-    // Load current temperature curve values
+    // Load current temperature curve values - KORJATTU VERSIO
     function loadCurve() {
       fetch('/getcurve')
         .then(response => response.json())
         .then(data => {
-          for(let i = 0; i < 4; i++) {
-            document.getElementById('editOutside' + i).value = data.points[i][0];
-            document.getElementById('editWater' + i).value = data.points[i][1];
+          // Tarkista että data on olemassa ja se on taulukko
+          if (data && Array.isArray(data) && data.length >= 4) {
+            for(let i = 0; i < 4; i++) {
+              // Käytä data[i][0] ja data[i][1] suoraan
+              document.getElementById('editOutside' + i).value = data[i][0] || '';
+              document.getElementById('editWater' + i).value = data[i][1] || '';
+            }
+          } else if (data && data.points && Array.isArray(data.points) && data.points.length >= 4) {
+            // Varmuuden vuoksi tarkista myös data.points -muoto
+            for(let i = 0; i < 4; i++) {
+              document.getElementById('editOutside' + i).value = data.points[i][0] || '';
+              document.getElementById('editWater' + i).value = data.points[i][1] || '';
+            }
+          } else {
+            console.error('Invalid curve data received:', data);
+            // Lataa oletusarvot
+            loadDefaultCurveValues();
           }
+        })
+        .catch(error => {
+          console.error('Error loading curve:', error);
+          loadDefaultCurveValues();
         });
+    }
+    
+    // Lataa oletusarvot käyrälle
+    function loadDefaultCurveValues() {
+      const defaultCurve = [
+        [-20.0, 75.0],
+        [-10.0, 65.0],
+        [0.0, 55.0],
+        [10.0, 45.0]
+      ];
+      
+      for(let i = 0; i < 4; i++) {
+        document.getElementById('editOutside' + i).value = defaultCurve[i][0];
+        document.getElementById('editWater' + i).value = defaultCurve[i][1];
+      }
     }
     
     // Save WiFi settings
@@ -1797,7 +1830,7 @@ void webServerTask(void *parameter) {
   // Web server main loop
   while (1) {
     server.handleClient();
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(500));
   }
 }
 
