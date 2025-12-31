@@ -10,9 +10,11 @@
 #include <freertos/event_groups.h>
 #include <esp_task_wdt.h>
 
+#define DEBUG_TEMP 1
+
 // ==================== KONFIGURAATIO ====================
-#define OUTSIDE_SENSOR_PIN 4    // GPIO-pinni ulkolämpötilan anturille
-#define WATER_SENSOR_PIN 5      // GPIO-pinni menoveden lämpötilan anturille
+#define OUTSIDE_SENSOR_PIN 23    // GPIO-pinni ulkolämpötilan anturille
+#define WATER_SENSOR_PIN 22      // GPIO-pinni menoveden lämpötilan anturille
 #define RELAY_PIN 2             // GPIO-pinni releen ohjaukseen
 #define HYSTERESIS 4.0          // Hystereesi lämpötilasäädössä (°C)
 
@@ -549,26 +551,19 @@ void updateSensorStatus(SensorStatus& status, SensorData& data,
       xEventGroupSetBits(xSystemEvents, bits);
     }
   } else {
-    // HYVÄKSYTTÄVÄ LUKEMA
+ // Päivitä data
     data.currentTemp = newValue;
     data.lastValidTemp = newValue;
     data.lastValidReadTime = currentTime;
     data.addValidValue(newValue);
-    
-    // Jos oli tilapäinen häiriö, nollaa laskuri
-    if (status.temporaryFault) {
-      status.consecutiveFailures = 0;
-      status.temporaryFault = false;
-      
-      // Tyhjää Event Groupin bitti
-      EventBits_t bits = BIT_SENSOR_FAULT_OUTSIDE;
-      if (isWaterSensor) bits = BIT_SENSOR_FAULT_WATER;
-      xEventGroupClearBits(xSystemEvents, bits);
-    }
-    
-    // Jos oli pieni määrä virheitä (alle MAX), nollaa ne
-    if (status.consecutiveFailures > 0 && status.consecutiveFailures < MAX_CONSECUTIVE_FAILURES) {
-      status.consecutiveFailures = 0;
+
+    // Nollaa kaikki virheet
+    status.consecutiveFailures = 0;
+    status.temporaryFault = false;
+    if (status.fault) {
+        status.fault = false;
+        EventBits_t bits = isWaterSensor ? BIT_SENSOR_FAULT_WATER : BIT_SENSOR_FAULT_OUTSIDE;
+        xEventGroupClearBits(xSystemEvents, bits);
     }
   }
 }
@@ -653,7 +648,12 @@ void temperatureTask(void *parameter) {
         
         // Ilmoita watchdogille että olemme edelleen elossa
         xEventGroupSetBits(xSystemEvents, BIT_TEMP_TASK_ALIVE);
-        
+        if (sensorsOutside.getDeviceCount() == 0) {
+              sensorsOutside.begin(); // Etsi anturit uudelleen
+          }
+        if (sensorsWater.getDeviceCount() == 0) {
+              sensorsWater.begin();
+          }
         // Aloita uusi mittaussykli
         sensorsOutside.requestTemperatures();
         readState = REQUEST_OUTSIDE;
@@ -671,7 +671,9 @@ void temperatureTask(void *parameter) {
         // Odota että DS18B20 mittaus valmistuu (max 750ms 12-bitille)
         if (currentTime - requestTime > 750) {
           float outsideTemp = sensorsOutside.getTempCByIndex(0);
-          
+          #if DEBUG_TEMP
+           Serial.printf("[TEMP] OUTSIDE: %.2f °C\n", outsideTemp );
+           #endif
           // Päivitä ulkoanturin tila suojatusti
           if (xSemaphoreTake(xSensorStatusMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
             updateSensorStatus(systemState.outsideStatus, systemState.outsideData, 
@@ -695,7 +697,9 @@ void temperatureTask(void *parameter) {
       case WAIT_WATER:
         if (currentTime - requestTime > 750) {
           float waterTemp = sensorsWater.getTempCByIndex(0);
-          
+           #if DEBUG_TEMP
+           Serial.printf("[TEMP] Water: %.2f °C\n", waterTemp);
+           #endif
           // Päivitä vesianturin tila suojatusti
           if (xSemaphoreTake(xSensorStatusMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
             updateSensorStatus(systemState.waterStatus, systemState.waterData, 
