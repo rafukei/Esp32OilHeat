@@ -1817,7 +1817,9 @@ void controlTask(void *parameter) {
         bool releOn = snapshot.burnerState;  // true = ON, false = OFF
         // 2. Calculate current target (for normal operation)
         float currentTarget = settings.calculateTargetTemp(snapshot.outsideTemp);
-        
+        if(currentTarget>0){
+          delayActive= false;
+        }
         if(releOn && oldTagetTemp>0 && currentTarget ==0 && !delayActive){ 
             currentTarget=oldTagetTemp;
             // Start delay and freeze values
