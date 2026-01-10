@@ -87,14 +87,16 @@
 #define BIT_TEMP_TASK_ALIVE      (1 << 3)  // Temperature task alive (watchdog)
 #define BIT_EMERGENCY_STOP       (1 << 4)  // Emergency stop activated
 
-// ==================== DATA STRUCTURES ====================
+// ==================== FORWARD DECLARATIONS ====================
 
-// Forward declarations
-struct SensorData;
-struct SensorStatus;
-struct SystemSettings;
-struct CurvePoints;
-struct WifiConfig;
+// Global objects that will be defined later
+extern EventGroupHandle_t xSystemEvents;
+extern QueueHandle_t xRelayControlQueue;
+
+// Utility function declarations
+bool isTemperatureFaulty(float temperature, bool isWaterSensor);
+
+// ==================== DATA STRUCTURES ====================
 
 /**
  * WiFi configuration structure
@@ -334,6 +336,36 @@ struct RelayCommand {
         : type(cmdType), state(cmdState), timestamp(xTaskGetTickCount() * portTICK_PERIOD_MS) {}
 };
 
+// ==================== UTILITY FUNCTIONS ====================
+
+/**
+ * Check if temperature reading is faulty
+ * @param temperature Temperature to validate
+ * @param isWaterSensor true for water sensor, false for outside
+ * @return true if temperature is faulty
+ */
+bool isTemperatureFaulty(float temperature, bool isWaterSensor) {
+    // Check for disconnected sensor
+    if (temperature == DEVICE_DISCONNECTED_C) {
+        return true;
+    }
+    
+    // Check for unrealistic low temperature
+    if (temperature < SENSOR_FAULT_TEMP) {
+        return true;
+    }
+    
+    // Check for unrealistic high temperature (sensor-specific)
+    if (isWaterSensor) {
+        if (temperature > WATER_TEMP_MAX) return true;
+    } else {
+        if (temperature > OUTSIDE_TEMP_MAX) return true;
+    }
+    
+    // Valid temperature
+    return false;
+}
+
 // ==================== SYSTEM STATE CLASS ====================
 
 /**
@@ -482,7 +514,7 @@ public:
         SensorStatus* status = isWaterSensor ? &tempData.waterStatus : &tempData.outsideStatus;
         SensorData* data = isWaterSensor ? &tempData.waterData : &tempData.outsideData;
         
-        // Check for sensor fault
+        // Check for sensor fault using global function
         bool isFaulty = isTemperatureFaulty(newTemp, isWaterSensor);
         unsigned long currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
         
@@ -789,14 +821,14 @@ public:
     }
 };
 
-// ==================== GLOBAL OBJECTS ====================
+// ==================== GLOBAL OBJECTS DEFINITION ====================
 
 // Global system state instance (thread-safe)
 SystemState systemState;
 
 // FreeRTOS resources
-EventGroupHandle_t xSystemEvents;          // System event group
-QueueHandle_t xRelayControlQueue;          // Relay command queue
+EventGroupHandle_t xSystemEvents = NULL;          // System event group
+QueueHandle_t xRelayControlQueue = NULL;          // Relay command queue
 
 // Hardware objects
 OneWire oneWireOutside(OUTSIDE_SENSOR_PIN);
@@ -816,35 +848,7 @@ TaskHandle_t xRelayTaskHandle = NULL;
 TaskHandle_t xWatchdogTaskHandle = NULL;
 TaskHandle_t xFlashTaskHandle = NULL;
 
-// ==================== UTILITY FUNCTIONS ====================
-
-/**
- * Check if temperature reading is faulty
- * @param temperature Temperature to validate
- * @param isWaterSensor true for water sensor, false for outside
- * @return true if temperature is faulty
- */
-bool isTemperatureFaulty(float temperature, bool isWaterSensor) {
-    // Check for disconnected sensor
-    if (temperature == DEVICE_DISCONNECTED_C) {
-        return true;
-    }
-    
-    // Check for unrealistic low temperature
-    if (temperature < SENSOR_FAULT_TEMP) {
-        return true;
-    }
-    
-    // Check for unrealistic high temperature (sensor-specific)
-    if (isWaterSensor) {
-        if (temperature > WATER_TEMP_MAX) return true;
-    } else {
-        if (temperature > OUTSIDE_TEMP_MAX) return true;
-    }
-    
-    // Valid temperature
-    return false;
-}
+// ==================== WIFI FUNCTIONS ====================
 
 /**
  * Initialize WiFi connection
