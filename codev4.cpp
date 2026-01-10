@@ -1,4 +1,4 @@
-/**
+**
  * OIL HEATING SYSTEM - FreeRTOS + WiFi
  * 
  * Complete thread-safe implementation for ESP32
@@ -1400,18 +1400,718 @@ const char* htmlPage = R"rawliteral(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Oil Heating Control</title>
   <style>
-    /* ... (your existing CSS styles) ... */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 20px;
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    .sensor-box {
+      background: #252525;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 10px;
+      border-left: 4px solid #4CAF50;
+    }
+    .status-box {
+      background: #252525;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 10px;
+      border-left: 4px solid #2196F3;
+    }
+    .control-box {
+      background: #252525;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 10px;
+      border-left: 4px solid #FF9800;
+    }
+    .config-box {
+      background: #252525;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 10px;
+      border-left: 4px solid #9C27B0;
+    }
+    .curve-box {
+      background: #252525;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 10px;
+      border-left: 4px solid #009688;
+    }
+    .settings-box {
+      background: #252525;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 10px;
+      border-left: 4px solid #E91E63;
+    }
+    .temperature-display {
+      font-size: 28px;
+      font-weight: bold;
+      color: #4CAF50;
+      text-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+    }
+    .target-display {
+      font-size: 24px;
+      font-weight: bold;
+      color: #2196F3;
+    }
+    .fault {
+      color: #f44336;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .warning {
+      color: #ff9800;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .ok {
+      color: #4CAF50;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    button {
+      background-color: #2d2d2d;
+      color: #e0e0e0;
+      padding: 12px 20px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 8px;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background-color: #3d3d3d;
+      border-color: #666;
+      transform: translateY(-2px);
+    }
+    button.danger {
+      background-color: #5d1f1f;
+      border-color: #f44336;
+    }
+    button.danger:hover {
+      background-color: #7d2f2f;
+    }
+    button.success {
+      background-color: #1f3d1f;
+      border-color: #4CAF50;
+    }
+    button.success:hover {
+      background-color: #2f4d2f;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      background-color: #2d2d2d;
+    }
+    th, td {
+      border: 1px solid #444;
+      padding: 12px;
+      text-align: center;
+    }
+    th {
+      background-color: #333;
+      color: #e0e0e0;
+      font-weight: bold;
+    }
+    tr:nth-child(even) {
+      background-color: #2a2a2a;
+    }
+    input[type=text], input[type=password], input[type=number] {
+      width: 220px;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background-color: #2d2d2d;
+      color: #e0e0e0;
+      font-size: 16px;
+    }
+    input[type=number] {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .tab {
+      overflow: hidden;
+      border: 1px solid #444;
+      background-color: #2d2d2d;
+      border-radius: 10px 10px 0 0;
+    }
+    .tab button {
+      background-color: inherit;
+      float: left;
+      border: none;
+      border-bottom: 3px solid transparent;
+      outline: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      transition: 0.3s;
+      color: #aaa;
+      font-weight: bold;
+      border-radius: 0;
+      margin: 0;
+    }
+    .tab button:hover {
+      background-color: #3d3d3d;
+      color: #fff;
+    }
+    .tab button.active {
+      background-color: #1e1e1e;
+      color: #4CAF50;
+      border-bottom: 3px solid #4CAF50;
+    }
+    .tabcontent {
+      display: none;
+      padding: 25px;
+      border: 1px solid #444;
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+    }
+    h1 {
+      color: #4CAF50;
+      text-align: center;
+      font-size: 32px;
+      margin-bottom: 25px;
+      text-shadow: 0 0 10px rgba(76, 175, 80, 0.2);
+    }
+    h2 {
+      color: #e0e0e0;
+      border-bottom: 2px solid #444;
+      padding-bottom: 10px;
+      margin-top: 0;
+    }
+    h3 {
+      color: #bbb;
+      margin-top: 20px;
+    }
+    p {
+      line-height: 1.6;
+    }
+    .info-note {
+      background-color: #2a3a2a;
+      border-left: 4px solid #4CAF50;
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .warning-note {
+      background-color: #3a2a2a;
+      border-left: 4px solid #f44336;
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .control-label {
+      font-size: 18px;
+      font-weight: bold;
+      color: #bbb;
+      display: inline-block;
+      width: 200px;
+    }
+    .control-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+    .section-title {
+      font-size: 22px;
+      color: #4CAF50;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+    }
+    .section-title:before {
+      content: "▶";
+      margin-right: 10px;
+      color: #4CAF50;
+    }
+    .temperature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .temp-card {
+      background: linear-gradient(145deg, #2a2a2a, #252525);
+      padding: 25px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .temp-card h3 {
+      margin-top: 0;
+      color: #bbb;
+      font-size: 18px;
+    }
   </style>
   <script>
-    /* ... (your existing JavaScript) ... */
+    let currentTab = 'control';
+    
+    // Switch tab
+    function openTab(evt, tabName) {
+      var i, tabcontent, tablinks;
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      tablinks = document.getElementsByClassName("tablink");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.className += " active";
+      currentTab = tabName;
+    }
+    
+    // Update system data
+    function updateData() {
+      fetch('/data')
+        .then(response => response.json())
+        .then(data => {
+          // Temperatures - LARGE FONT DISPLAY
+          document.getElementById('outsideTemp').innerHTML = '<span class="temperature-display">' + data.outsideTemp.toFixed(1) + ' °C</span>';
+          document.getElementById('waterTemp').innerHTML = '<span class="temperature-display">' + data.waterTemp.toFixed(1) + ' °C</span>';
+          document.getElementById('targetTemp').innerHTML = '<span class="target-display">' + data.targetTemp.toFixed(1) + ' °C</span>';
+          
+          // Sensor statuses
+          document.getElementById('outsideStatus').innerText = data.outsideStatus;
+          document.getElementById('outsideStatus').className = data.outsideStatus === 'ERROR' ? 'fault' : 
+                                                              data.outsideStatus === 'WARNING' ? 'warning' : 'ok';
+          document.getElementById('waterStatus').innerText = data.waterStatus;
+          document.getElementById('waterStatus').className = data.waterStatus === 'ERROR' ? 'fault' : 
+                                                            data.waterStatus === 'WARNING' ? 'warning' : 'ok';
+          
+          // Burner
+          document.getElementById('burnerState').innerText = data.burnerState ? 'ON' : 'OFF';
+          document.getElementById('burnerState').className = data.burnerState ? 'ok' : 'fault';
+          document.getElementById('burnerMode').innerText = data.manualMode ? 'Manual' : 'Automatic';
+          document.getElementById('heatingDisabled').innerText = data.heatingDisabled ? 'YES (outside temp too high)' : 'NO';
+          document.getElementById('heatingDisabled').className = data.heatingDisabled ? 'warning' : 'ok';
+          
+          // WiFi
+          document.getElementById('wifiMode').innerText = data.wifiMode;
+          document.getElementById('wifiIP').innerText = data.wifiIP;
+          
+          // Hysteresis - LARGE FONT
+          document.getElementById('currentHysteresis').innerHTML = '<span class="target-display">' + data.hysteresis.toFixed(1) + ' °C</span>';
+        })
+        .catch(error => {
+          console.error('Error fetching data:', error);
+        });
+    }
+    
+    // Set manual/automatic mode
+    function setManualState(state) {
+      fetch('/control?manual=' + (state ? '1' : '0'))
+        .then(() => updateData());
+    }
+    
+    // Set burner state (manual mode only)
+    function setBurnerState(state) {
+      fetch('/control?burner=' + (state ? '1' : '0'))
+        .then(() => updateData());
+    }
+    
+    // Emergency stop
+    function emergencyStop() {
+      if (confirm('⚠️ WARNING: Are you sure you want to perform emergency shutdown?\n\nThis will immediately turn off the burner regardless of current state.')) {
+        fetch('/emergency')
+          .then(() => {
+            alert('✅ Emergency shutdown performed!');
+            updateData();
+          });
+      }
+    }
+    
+    // Save temperature curve
+    function saveCurve() {
+      const curveData = [];
+      for(let i = 0; i < 4; i++) {
+        const outside = document.getElementById('editOutside' + i).value;
+        const water = document.getElementById('editWater' + i).value;
+        
+        // Validate inputs
+        if (outside === '' || water === '') {
+          alert('Error: All curve points must have values!');
+          return;
+        }
+        if (parseFloat(outside) < -50 || parseFloat(outside) > 50) {
+          alert('Error: Outside temperature must be between -50 and 50 °C!');
+          return;
+        }
+        if (parseFloat(water) < 20 || parseFloat(water) > 90) {
+          alert('Error: Water temperature must be between 20 and 90 °C!');
+          return;
+        }
+        
+        curveData.push(outside + ',' + water);
+      }
+      
+      fetch('/setcurve?' + curveData.map((d, i) => `p${i}=${d}`).join('&'))
+        .then(() => {
+          alert('✅ Temperature curve saved successfully!');
+          updateData();
+        });
+    }
+    
+    // Load current temperature curve values
+    function loadCurve() {
+      fetch('/getcurve')
+        .then(response => response.json())
+        .then(data => {
+          if (data && Array.isArray(data) && data.length >= 4) {
+            for(let i = 0; i < 4; i++) {
+              document.getElementById('editOutside' + i).value = data[i][0] || '';
+              document.getElementById('editWater' + i).value = data[i][1] || '';
+            }
+          } else if (data && data.points && Array.isArray(data.points) && data.points.length >= 4) {
+            for(let i = 0; i < 4; i++) {
+              document.getElementById('editOutside' + i).value = data.points[i][0] || '';
+              document.getElementById('editWater' + i).value = data.points[i][1] || '';
+            }
+          } else {
+            loadDefaultCurveValues();
+          }
+        })
+        .catch(error => {
+          console.error('Error loading curve:', error);
+          loadDefaultCurveValues();
+        });
+    }
+    
+    // Load default curve values
+    function loadDefaultCurveValues() {
+      const defaultCurve = [
+        [-20.0, 75.0],
+        [-10.0, 65.0],
+        [0.0, 55.0],
+        [10.0, 45.0]
+      ];
+      
+      for(let i = 0; i < 4; i++) {
+        document.getElementById('editOutside' + i).value = defaultCurve[i][0];
+        document.getElementById('editWater' + i).value = defaultCurve[i][1];
+      }
+    }
+    
+    // Save WiFi settings
+    function saveWifiConfig() {
+      const apSsid = document.getElementById('apSsid').value;
+      const apPassword = document.getElementById('apPassword').value;
+      const useSta = document.getElementById('useSta').checked;
+      const staSsid = document.getElementById('staSsid').value;
+      const staPassword = document.getElementById('staPassword').value;
+      
+      if (apSsid.length < 1) {
+        alert('Error: AP network name cannot be empty!');
+        return;
+      }
+      
+      if (useSta && staSsid.length < 1) {
+        alert('Error: Network name cannot be empty when STA mode is enabled!');
+        return;
+      }
+      
+      const params = new URLSearchParams({
+        ap_ssid: apSsid,
+        ap_password: apPassword,
+        use_sta: useSta ? '1' : '0',
+        sta_ssid: staSsid,
+        sta_password: staPassword
+      });
+      
+      if (confirm('Save WiFi settings?\n\n⚠️ Device will restart automatically after saving.')) {
+        fetch('/setwifi?' + params.toString())
+          .then(response => response.text())
+          .then(result => {
+            alert('✅ WiFi settings saved!\n' + result);
+          });
+      }
+    }
+    
+    // Load WiFi settings
+    function loadWifiConfig() {
+      fetch('/getwifi')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('apSsid').value = data.ap_ssid || '';
+          document.getElementById('apPassword').value = data.ap_password || '';
+          document.getElementById('useSta').checked = data.use_sta || false;
+          document.getElementById('staSsid').value = data.sta_ssid || '';
+          document.getElementById('staPassword').value = data.sta_password || '';
+          
+          // Update STA fields visibility
+          toggleStaFields();
+        })
+        .catch(error => {
+          console.error('Error loading WiFi settings:', error);
+        });
+    }
+    
+    // Show/hide STA fields
+    function toggleStaFields() {
+      const useSta = document.getElementById('useSta').checked;
+      document.getElementById('staFields').style.display = useSta ? 'block' : 'none';
+    }
+    
+    // Save system settings (hysteresis)
+    function saveSystemSettings() {
+      const hysteresis = document.getElementById('hysteresisValue').value;
+      
+      if (hysteresis < 0.5 || hysteresis > 10.0) {
+        alert('Error: Hysteresis must be between 0.5 and 10.0 °C!');
+        return;
+      }
+      
+      fetch('/setsettings?hysteresis=' + hysteresis)
+        .then(response => response.text())
+        .then(result => {
+          alert('✅ System settings saved!\n' + result);
+          updateData();
+        });
+    }
+    
+    // Load system settings
+    function loadSystemSettings() {
+      fetch('/getsettings')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('hysteresisValue').value = data.hysteresis || 4.0;
+        });
+    }
+    
+    // Update data automatically every 5 seconds
+    setInterval(updateData, 5000);
+    
+    // Initialization when page loads
+    window.onload = function() {
+      // Open first tab
+      document.getElementsByClassName("tablink")[0].click();
+      
+      // Load settings
+      loadWifiConfig();
+      loadCurve();
+      loadSystemSettings();
+      
+      // Update data
+      updateData();
+    };
   </script>
 </head>
 <body>
-  <!-- ... (your existing HTML) ... -->
+  <div class="container">
+    <h1>🔥 Oil Heating Control System</h1>
+    
+    <div class="tab">
+      <button class="tablink" onclick="openTab(event, 'control')">Control Panel</button>
+      <button class="tablink" onclick="openTab(event, 'wifi')">WiFi Settings</button>
+      <button class="tablink" onclick="openTab(event, 'curve')">Temperature Curve</button>
+      <button class="tablink" onclick="openTab(event, 'settings')">System Settings</button>
+    </div>
+    
+    <!-- CONTROL TAB -->
+    <div id="control" class="tabcontent">
+      <div class="temperature-grid">
+        <div class="temp-card">
+          <h3>Outside Temperature</h3>
+          <div id="outsideTemp" class="temperature-display">-- °C</div>
+          <p>Status: <span id="outsideStatus" class="ok">OK</span></p>
+        </div>
+        
+        <div class="temp-card">
+          <h3>Water Temperature</h3>
+          <div id="waterTemp" class="temperature-display">-- °C</div>
+          <p>Status: <span id="waterStatus" class="ok">OK</span></p>
+        </div>
+        
+        <div class="temp-card">
+          <h3>Target Temperature</h3>
+          <div id="targetTemp" class="target-display">-- °C</div>
+          <p>Heating disabled: <span id="heatingDisabled" class="ok">--</span></p>
+        </div>
+      </div>
+      
+      <div class="status-box">
+        <h2>System Status</h2>
+        <p><span class="control-label">Outside sensor:</span> <span id="outsideStatusText" class="ok">OK</span></p>
+        <p><span class="control-label">Water sensor:</span> <span id="waterStatusText" class="ok">OK</span></p>
+        <p><span class="control-label">WiFi Mode:</span> <span id="wifiMode">--</span></p>
+        <p><span class="control-label">IP Address:</span> <span id="wifiIP">--</span></p>
+        <p><span class="control-label">Current Hysteresis:</span> <span id="currentHysteresis">-- °C</span></p>
+      </div>
+      
+      <div class="control-box">
+        <h2>Burner Control</h2>
+        <p><span class="control-label">Burner State:</span> <span id="burnerState" class="ok">--</span></p>
+        <p><span class="control-label">Control Mode:</span> <span id="burnerMode">--</span></p>
+        
+        <div class="info-note">
+          <strong>Control Mode Info:</strong><br>
+          • <strong>Automatic Mode:</strong> System controls burner based on temperature curve<br>
+          • <strong>Manual Mode:</strong> You control burner manually with ON/OFF buttons
+        </div>
+        
+        <button onclick="setManualState(false)" class="success">Switch to Automatic Mode</button>
+        <button onclick="setManualState(true)" class="success">Switch to Manual Mode</button>
+        <br>
+        <button onclick="setBurnerState(true)" class="success">Turn Burner ON</button>
+        <button onclick="setBurnerState(false)" class="success">Turn Burner OFF</button>
+        <br>
+        <button onclick="emergencyStop()" class="danger">🚨 Emergency Stop</button>
+        
+        <div class="warning-note">
+          <strong>⚠️ Emergency Stop Warning:</strong><br>
+          This will immediately turn off the burner regardless of current mode or temperature conditions. Use only in emergency situations!
+        </div>
+      </div>
+    </div>
+    
+    <!-- WIFI SETTINGS TAB -->
+    <div id="wifi" class="tabcontent">
+      <div class="config-box">
+        <h2>WiFi Configuration</h2>
+        
+        <div class="info-note">
+          <strong>Configuration Options:</strong><br>
+          1. <strong>Access Point (AP) Mode:</strong> Device creates its own WiFi network<br>
+          2. <strong>Station (STA) Mode:</strong> Device connects to your existing WiFi network<br>
+          If STA connection fails, device will automatically fall back to AP mode.
+        </div>
+        
+        <h3>Access Point (Own Network) Settings</h3>
+        <p>Device creates its own WiFi network that you can connect to directly.</p>
+        <p><strong>Network Name (SSID):</strong><br>
+        <input type="text" id="apSsid" placeholder="Enter AP network name" value="OilHeaterAP"></p>
+        <p><strong>Password:</strong><br>
+        <input type="password" id="apPassword" placeholder="Enter AP password" value="enmuista"></p>
+        
+        <h3>Connect to Existing Network (Optional)</h3>
+        <p><input type="checkbox" id="useSta" onclick="toggleStaFields()">
+        <label for="useSta"><strong>Enable connection to existing network</strong></label></p>
+        
+        <div id="staFields" style="display: none;">
+          <p><strong>Network Name (SSID):</strong><br>
+          <input type="text" id="staSsid" placeholder="Enter your WiFi network name"></p>
+          <p><strong>Password:</strong><br>
+          <input type="password" id="staPassword" placeholder="Enter your WiFi password"></p>
+        </div>
+        
+        <button onclick="saveWifiConfig()" class="success">💾 Save WiFi Settings</button>
+        <button onclick="loadWifiConfig()">🔄 Load Current Settings</button>
+        
+        <div class="warning-note">
+          <strong>⚠️ Important Notice:</strong><br>
+          Device will restart automatically after saving WiFi settings. This may take about 30 seconds.
+        </div>
+      </div>
+    </div>
+    
+    <!-- TEMPERATURE CURVE TAB -->
+    <div id="curve" class="tabcontent">
+      <div class="curve-box">
+        <h2>Temperature Curve Configuration</h2>
+        
+        <div class="info-note">
+          <strong>How Temperature Curve Works:</strong><br>
+          The system uses 4-point linear interpolation to calculate target water temperature based on outside temperature.<br>
+          Example: If outside is -20°C → target water is 75°C, if outside is 10°C → target water is 45°C.<br>
+          <strong>Important:</strong> Outside temperatures above the warmest point (point 4) will disable heating completely.
+        </div>
+        
+        <table>
+          <tr>
+            <th>Point</th>
+            <th>Outside Temperature (°C)</th>
+            <th>Target Water Temperature (°C)</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>1</td>
+            <td><input type="number" id="editOutside0" step="0.1" value="-20.0" style="font-size: 18px;"></td>
+            <td><input type="number" id="editWater0" step="0.1" value="75.0" style="font-size: 18px;"></td>
+            <td>Coldest point (max heating)</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><input type="number" id="editOutside1" step="0.1" value="-10.0" style="font-size: 18px;"></td>
+            <td><input type="number" id="editWater1" step="0.1" value="65.0" style="font-size: 18px;"></td>
+            <td>Cold weather</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><input type="number" id="editOutside2" step="0.1" value="0.0" style="font-size: 18px;"></td>
+            <td><input type="number" id="editWater2" step="0.1" value="55.0" style="font-size: 18px;"></td>
+            <td>Freezing point</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><input type="number" id="editOutside3" step="0.1" value="10.0" style="font-size: 18px;"></td>
+            <td><input type="number" id="editWater3" step="0.1" value="45.0" style="font-size: 18px;"></td>
+            <td>Warmest point (above = heating off)</td>
+          </tr>
+        </table>
+        
+        <button onclick="saveCurve()" class="success">💾 Save Temperature Curve</button>
+        <button onclick="loadCurve()">🔄 Load Current Curve</button>
+        
+        <div class="info-note">
+          <strong>💡 Tip:</strong> Curve settings are saved to flash memory automatically with a 5-second delay to prevent excessive writes.
+        </div>
+      </div>
+    </div>
+    
+    <!-- SYSTEM SETTINGS TAB -->
+    <div id="settings" class="tabcontent">
+      <div class="settings-box">
+        <h2>System Settings</h2>
+        
+        <div class="info-note">
+          <strong>Control Stability Information:</strong><br>
+          • <strong>Hysteresis:</strong> Prevents rapid on/off cycling of the burner<br>
+          • <strong>Outside Temp Update:</strong> Control logic updates outside temperature only every 10 minutes for stable operation<br>
+          • This prevents short cycling when outside temperature is near the cutoff point
+        </div>
+        
+        <h3>Control Parameters</h3>
+        <p><strong>Hysteresis Value:</strong><br>
+        <input type="number" id="hysteresisValue" step="0.1" min="0.5" max="10.0" value="4.0" style="font-size: 20px; padding: 12px;"> °C</p>
+        
+        <p><em>Hysteresis prevents rapid on/off switching of the burner:<br>
+        • <strong>Smaller value (0.5-2.0):</strong> More precise temperature control<br>
+        • <strong>Larger value (2.0-10.0):</strong> More stable operation, less wear on burner</em></p>
+        
+        <button onclick="saveSystemSettings()" class="success">💾 Save System Settings</button>
+        <button onclick="loadSystemSettings()">🔄 Load Current Settings</button>
+        
+        <div class="info-note">
+          <strong>System Information:</strong><br>
+          • Outside temperature for control updates every 10 minutes for stability<br>
+          • Water temperature is checked continuously for safety<br>
+          • All settings are saved automatically with 5-second delay<br>
+          • Emergency stop overrides all normal operations
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 )rawliteral";
-
 /**
  * Web server task
  * Provides web interface for system monitoring and control
