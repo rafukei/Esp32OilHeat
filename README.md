@@ -1,4 +1,5 @@
 # Oil Heating System - ESP32 FreeRTOS Controller
+![Picture](oil.png)
 
 ## 📋 Project Overview
 An advanced oil heating control system using ESP32 with FreeRTOS for reliable, multi-threaded operation. Features temperature-based automatic control with web interface for remote monitoring and configuration.
