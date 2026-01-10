@@ -37,7 +37,7 @@
 #include <esp_task_wdt.h>
 
 // Debug configuration
-#define DEBUG_TEMP 1        // Enable temperature debug output
+#define DEBUG_TEMP 0        // Enable temperature debug output
 #define DEBUG_CONTROL 1     // Enable control logic debug output
 
 // ==================== HARDWARE CONFIGURATION ====================
@@ -1798,89 +1798,69 @@ void temperatureTask(void *parameter) {
 }
 
 /**
- * Control logic task - NEW 10-MINUTE DELAY FEATURE
+ * Control logic - 10-min delay starts when relay is ON AND outside > cutoff
+ * Hysteresis continues to work DURING delay and can cancel delay
  */
 void controlTask(void *parameter) {
-    Serial.println("Control task started - 10-minute delay feature active");
-    
-    // Control modes
-    enum { MODE_NORMAL, MODE_DELAY } currentMode = MODE_NORMAL;
-    
-    // Timing variables
-    unsigned long lastControlTime = 0;
-    unsigned long delayStartTime = 0;
-    
+    Serial.println("Control task - Target temp freezing during delay");
+    static float oldTagetTemp=0;
+    unsigned long delayEndTime = 0;
+    bool delayActive = false;
+    vTaskDelay(pdMS_TO_TICKS(20000));
     while (1) {
         unsigned long currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
         
-        // Execute control logic every second
-        if (currentTime - lastControlTime >= 1000) {
-            lastControlTime = currentTime;
-            
-            // Get system snapshot using the helper method
-            SystemControlSnapshot snapshot = systemState.getControlSnapshot();
-            
-            // Calculate target temperature
-            auto settings = systemState.getSettingsSnapshot();
-            float targetTemp = settings.calculateTargetTemp(snapshot.outsideTemp);
-            bool heatingDisabled = (targetTemp <= 0);
-            
-            // Update heating status
-            updateHeatingStatus(heatingDisabled);
-            
-            // Main control switch
-            switch (currentMode) {
-                case MODE_NORMAL:
-                    // Normal control logic
-                    if (heatingDisabled) {
-                        // Switch to delay mode
-                        currentMode = MODE_DELAY;
-                        delayStartTime = currentTime;
-                        
-                        // Turn burner off
-                        if (snapshot.burnerState) {
-                            setBurnerState(false);
-                        }
-                        
-                        Serial.println("[CONTROL] Switching to DELAY mode (10 minutes)");
-                    } else {
-                        // Apply normal hysteresis
-                        applyHysteresis(snapshot, targetTemp);
-                    }
-                    break;
-                    
-                case MODE_DELAY:
-                    // Check delay timer
-                    if (currentTime - delayStartTime >= 600000) { // 10 minutes
-                        // Delay finished
-                        currentMode = MODE_NORMAL;
-                        Serial.println("[CONTROL] 10-minute delay finished, returning to normal mode");
-                        
-                        // Apply control with updated mode
-                        if (!heatingDisabled) {
-                            applyHysteresis(snapshot, targetTemp);
-                        }
-                    } else {
-                        // Still in delay - burner stays off
-                        if (snapshot.burnerState) {
-                            setBurnerState(false);
-                        }
-                        
-                        // Show remaining time
-                        #if DEBUG_CONTROL
-                        static unsigned long lastRemainingTime = 0;
-                        if (currentTime - lastRemainingTime > 30000) { // Every 30 seconds
-                            lastRemainingTime = currentTime;
-                            unsigned long remaining = (600000 - (currentTime - delayStartTime)) / 1000;
-                            Serial.printf("[CONTROL] Delay: %lu seconds remaining\n", remaining);
-                        }
-                        #endif
-                    }
-                    break;
-            }
-        }
+        // 1. Get current readings
+        SystemControlSnapshot snapshot = systemState.getControlSnapshot();
+        auto settings = systemState.getSettingsSnapshot();
+        float cutoffTemp = settings.curve.points[3][0];
+        bool releOn = snapshot.burnerState;  // true = ON, false = OFF
+        // 2. Calculate current target (for normal operation)
+        float currentTarget = settings.calculateTargetTemp(snapshot.outsideTemp);
         
-        vTaskDelay(pdMS_TO_TICKS(50));
+        if(releOn && oldTagetTemp>0 && currentTarget ==0 && !delayActive){ 
+            currentTarget=oldTagetTemp;
+            // Start delay and freeze values
+            delayActive= true;
+            delayEndTime = currentTime + 600000; 
+            Serial.printf("[DELAY START]");
+        }
+        if(!delayActive){
+          oldTagetTemp=currentTarget;
+        }
+        if(delayActive && releOn ){
+          currentTarget=oldTagetTemp;
+        }
+        if(!releOn){
+          delayActive= false;
+        } 
+
+        // Check if delay time has expired
+         if (delayActive && currentTime >= delayEndTime) {
+                delayActive = false;
+                Serial.println("[DELAY] 10-min viive päättyi");       
+                  // Hysteresis turns relay OFF
+                setBurnerState(false);
+                    // Cancel delay since relay turned off
+                 delayActive = false;
+                Serial.printf("[DELAY CANCEL] Hystereesi sammutti releen\n");
+         }
+         if(delayActive){
+                // Show status
+                unsigned long remaining = (delayEndTime - currentTime) / 1000;
+                static unsigned long lastStatus = 0;
+                if (currentTime - lastStatus > 30000) {
+                    lastStatus = currentTime;
+                    Serial.printf("[DELAY] Aktiivinen: %lu min jäljellä, Target=%.1f°C\n",
+                                 remaining / 60, currentTarget);
+                }
+          }
+        
+         // Apply normal hysteresis with CURRENT target temp
+         applyHysteresis(snapshot, currentTarget);
+        
+        
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
