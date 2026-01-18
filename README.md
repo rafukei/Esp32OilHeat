@@ -1,7 +1,7 @@
 # Oil Heating System - ESP32 FreeRTOS Controller
 ![Picture](oil.png)
 # Oil Heating System - ESP32 Control System
-
+![esp32 board](esp32.png)
 ## 📋 Project Overview
 Complete thread-safe implementation for ESP32-based oil heating system with pump control, temperature monitoring, and web interface.
 
