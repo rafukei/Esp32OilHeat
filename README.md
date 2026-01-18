@@ -265,22 +265,12 @@ oil_heating_system.ino
 - **SystemTime**: Date/time management
 - **WifiConfig**: Network settings
 
-## 🔮 Future Enhancements
 
-### 🚀 Planned Features
-1. **MQTT Support**: Remote monitoring integration
-2. **Data Logging**: Temperature history storage
-3. **Mobile App**: Dedicated control application
-4. **Energy Monitoring**: Power consumption tracking
-5. **Weather Integration**: Forecast-based control
-6. **OTA Updates**: Wireless firmware updates
-7. **Multi-Zone Support**: Multiple heating circuits
-8. **Backup Power**: Battery/UPS integration
 
 ## 📄 License & Credits
 
 ### 👤 Author
-Heating System Engineer - 2024
+Heating System Engineer - 2026
 
 ### 📝 License
 Proprietary - For educational and personal use
